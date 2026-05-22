@@ -1,6 +1,8 @@
 // Simple ESP32 blink sketch
 // Uses the built-in LED on most ESP32 boards (GPIO 2)
 
+#include <Arduino.h>
+
 void setup()
 {
     pinMode(2, OUTPUT);
