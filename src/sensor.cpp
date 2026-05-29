@@ -140,9 +140,10 @@ void sensorLoop() {
         // ====================================
 
         String json = "{";
-        json += "\"temperature\":" + String(bme.readTemperature(), 1) + ",";
-        json += "\"humidity\":" + String(bme.readHumidity(), 1) + ",";
-        json += "\"pressure\":" + String(bme.readPressure() / 100.0F, 1);
+        json += "\"temperature\":" + String(temp, 1) + ",";
+        json += "\"humidity\":" + String(hum, 1) + ",";
+        json += "\"altitude\":" + String(alt, 1) + ",";
+        json += "\"pressure\":" + String(pres, 1);
         json += "}";
 
         // Print to Serial Monitor
