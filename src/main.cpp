@@ -3,7 +3,7 @@
 #include "sensor.h"
 
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(9600); //115200 modern default, works with blinky
 
     // -- comment in one block --
 
