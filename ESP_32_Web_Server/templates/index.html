@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ESP32 Real-Time Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            background-color: #f4f4f4;
+            margin: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        /* NEW: GRID CONTAINER */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            /* 3 charts side by side */
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        canvas {
+            height: 250px !important;
+            width: 100% !important;
+        }
+
+        /* Responsive for smaller screens */
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>ESP32 Real-Time Sensor Dashboard</h1>
+
+    <div class="dashboard">
+
+        <div class="chart-container">
+            <h2>Temperature</h2>
+            <canvas id="tempChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Humidity</h2>
+            <canvas id="humChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Pressure</h2>
+            <canvas id="presChart"></canvas>
+        </div>
+
+    </div>
+
+    <script>
+
+        // =========================
+        // SOCKET CONNECTION
+        // =========================
+
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log("Socket Connected!");
+        });
+
+        // =========================
+        // DATA ARRAYS
+        // =========================
+
+        let labels = [];
+
+        let tempData = [];
+        let humData = [];
+        let presData = [];
+
+        // =========================
+        // TEMPERATURE CHART
+        // =========================
+
+        const tempCtx = document.getElementById('tempChart').getContext('2d');
+
+        const tempChart = new Chart(tempCtx, {
+
+            type: 'line',
+
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: tempData,
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            },
+
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        min: 20,
+                        max: 35
+                    }
+                }
+            }
+        });
+
+        // =========================
+        // HUMIDITY CHART
+        // =========================
+
+        const humCtx = document.getElementById('humChart').getContext('2d');
+
+        const humChart = new Chart(humCtx, {
+
+            type: 'line',
+
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Humidity (%)',
+                    data: humData,
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            },
+
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        min: 40,
+                        max: 80
+                    }
+                }
+            }
+        });
+
+        // =========================
+        // PRESSURE CHART
+        // =========================
+
+        const presCtx = document.getElementById('presChart').getContext('2d');
+
+        const presChart = new Chart(presCtx, {
+
+            type: 'line',
+
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Pressure (hPa)',
+                    data: presData,
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            },
+
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        min: 980,
+                        max: 1030
+                    }
+                }
+            }
+        });
+
+        // =========================
+        // RECEIVE LIVE DATA
+        // =========================
+
+        socket.on('new_data', function (data) {
+
+            console.log("Received:", data);
+
+            const time = new Date().toLocaleTimeString();
+
+            labels.push(time);
+
+            tempData.push(data.temperature);
+            humData.push(data.humidity);
+            presData.push(data.pressure);
+
+            // Keep only last 20 points
+            if (labels.length > 20) {
+
+                labels.shift();
+
+                tempData.shift();
+                humData.shift();
+                presData.shift();
+            }
+
+            // Update all charts
+            tempChart.update();
+            humChart.update();
+            presChart.update();
+
+        });
+
+    </script>
+
+</body>
+
+</html>
