@@ -7,3 +7,4 @@
 #custom
 .vscode
 platformio.ini
+lib

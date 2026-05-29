@@ -70,6 +70,10 @@
             <h2>Pressure</h2>
             <canvas id="presChart"></canvas>
         </div>
+        <div class="chart-container">
+            <h2>Altitude</h2>
+            <canvas id="altChart"></canvas>
+        </div>
 
     </div>
 
@@ -94,6 +98,36 @@
         let tempData = [];
         let humData = [];
         let presData = [];
+        let altData = [];
+
+
+        const altctx = document.getElementById('altChart').getContext('2d');
+
+        const altChart = new Chart(altctx, {
+
+            type: 'line',
+
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Altitude (m)',
+                    data: altData,
+                    borderWidth: 2,
+                    tension: 0.4
+                }]
+            },
+
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    y: {
+                        min: 20,
+                        max: 400
+                    }
+                }
+            }
+        });
 
         // =========================
         // TEMPERATURE CHART
@@ -152,7 +186,7 @@
                 animation: false,
                 scales: {
                     y: {
-                        min: 40,
+                        min: 10,
                         max: 80
                     }
                 }
@@ -206,6 +240,7 @@
             tempData.push(data.temperature);
             humData.push(data.humidity);
             presData.push(data.pressure);
+            altData.push(data.altitude);
 
             // Keep only last 20 points
             if (labels.length > 20) {
@@ -215,12 +250,14 @@
                 tempData.shift();
                 humData.shift();
                 presData.shift();
+                altData.shift();
             }
 
             // Update all charts
             tempChart.update();
             humChart.update();
             presChart.update();
+            altChart.update();
 
         });
 
