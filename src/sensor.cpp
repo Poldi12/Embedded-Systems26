@@ -15,9 +15,9 @@ static Adafruit_BME280 bme;
 static Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 //Wifi params
-const char* ssid = "Galaxy S20 FE 5G A68D"; // your_wifi_ssid
+const char* ssid = "Galaxy S20 FE 5G A68D"; // wifi ssid
 const char* password = "tnan5726";
-const char* serverName = "http://192.168.95.134:5000/data"; // your_server_endpoint
+const char* serverName = "http://192.168.95.134:5000/data"; // server endpoint
 
 void sensorSetup() {
     Wire.setTimeOut(2000);  // 1s timeout so bme.begin() doesn't hang forever
@@ -28,7 +28,7 @@ void sensorSetup() {
     if (!bme.begin(0x76)) {
         Serial.println("BME280 not found at 0x76, trying 0x77...");
         if (!bme.begin(0x77)) {
-            Serial.println("Could not find BME280 sensor. Check wiring.");
+            Serial.println("Could not find BME280 sensor.");
             while (1) delay(10);
         }
     }
@@ -36,7 +36,7 @@ void sensorSetup() {
     Serial.println("-------------------------------");
 
     if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-        Serial.println("SSD1306 not found at 0x3C. Check wiring.");
+        Serial.println("SSD1306 not found at 0x3C.");
         while (1) delay(10);
     }
     display.clearDisplay();
@@ -50,29 +50,47 @@ void sensorSetup() {
     pinMode(18, OUTPUT);
     digitalWrite(18, LOW); // Start with fan off
 
-    //Wifi setup
     WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+    Serial.println("Connecting to WiFi...");
 
-  WiFi.begin(ssid, password);
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("Connecting WiFi...");
+    display.display();
 
-  Serial.println("Connecting to WiFi...");
+    int wifiTimeout = 4;
+    while (WiFi.status() != WL_CONNECTED && wifiTimeout-- > 0) {
+        delay(1000);
+        Serial.print(".");
+    }
+    Serial.println();
 
-  // Wait until connected
-  while (WiFi.status() != WL_CONNECTED)
-  {
-
-    delay(1000);
-    Serial.print(".");
-  }
-
-  Serial.println();
-  Serial.println("WiFi Connected!");
-
-  Serial.print("ESP32 IP Address: ");
-  Serial.println(WiFi.localIP());
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("WiFi Connected!");
+        Serial.print("ESP32 IP: ");
+        Serial.println(WiFi.localIP());
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("WiFi Connected!");
+        display.println(WiFi.localIP().toString());
+        display.display();
+        delay(5000);
+    } else {
+        Serial.println("WiFi not available, continuing without.");
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.println("No WiFi, continuing");
+        display.display();
+        delay(3000);
+    }
 }
 
 void sensorLoop() {
+    static int loopCount = 0;
+    static String serverStatus = "--";
+    loopCount++;
+
     float temp     = bme.readTemperature();
     float hum      = bme.readHumidity();
     float pres     = bme.readPressure() / 100.0F;
@@ -84,6 +102,32 @@ void sensorLoop() {
     Serial.printf("Altitude:    %.2f m\n",   alt);
     Serial.println("-------------------------------");
 
+    if (loopCount % 10 == 0) {
+        if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            http.begin(serverName);
+            http.setTimeout(2000);
+            http.addHeader("Content-Type", "application/json");
+
+            String json = "{";
+            json += "\"temperature\":" + String(temp, 1) + ",";
+            json += "\"humidity\":" + String(hum, 1) + ",";
+            json += "\"altitude\":" + String(alt, 1) + ",";
+            json += "\"pressure\":" + String(pres, 1);
+            json += "}";
+
+            Serial.println("Sending: " + json);
+            int httpResponseCode = http.POST(json);
+            Serial.printf("HTTP Response Code: %d\n", httpResponseCode);
+            http.end();
+
+            serverStatus = (httpResponseCode > 0) ? "OK" : "FAIL";
+        } else {
+            Serial.println("WiFi NOT connected");
+            serverStatus = "Not connected";
+        }
+    }
+
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
@@ -92,79 +136,13 @@ void sensorLoop() {
     display.printf("Hum:   %.1f %%\n",  hum);
     display.printf("Pres:  %.1f hPa\n", pres);
     display.printf("Alt:   %.1f m\n",   alt);
+    display.printf("Srv:   %s\n", serverStatus.c_str());
     display.display();
 
-    //fan logic
     if (temp > 29.0) {
-        digitalWrite(18, HIGH); // Turn on fan
-    } else {
-        digitalWrite(18, LOW);  // Turn off fan
-    }
-
-    //Wifi logic
-    //###########
-    // Check WiFi connection
-    if (WiFi.status() == WL_CONNECTED)
-    {
-
-        HTTPClient http;
-
-        // Flask server address
-        http.begin(serverName);
-
-        // JSON format
-        http.addHeader("Content-Type", "application/json");
-
-        // ====================================
-        // DUMMY SENSOR VALUES
-        // ====================================
-
-        /*
-        static float temperature = 25.0;
-        static float humidity = 50.0;
-        static float pressure = 1000.0;
-
-        // Smooth random changes
-        temperature += random(-20, 21) / 10.0;
-        humidity += random(-30, 31) / 10.0;
-        pressure += random(-10, 11) / 10.0;
-
-        // Keep values realistic
-        temperature = constrain(temperature, 20.0, 35.0);
-        humidity = constrain(humidity, 40.0, 80.0);
-        pressure = constrain(pressure, 980.0, 1030.0);
-
-        */
-        // ====================================
-        // CREATE JSON
-        // ====================================
-
-        String json = "{";
-        json += "\"temperature\":" + String(temp, 1) + ",";
-        json += "\"humidity\":" + String(hum, 1) + ",";
-        json += "\"altitude\":" + String(alt, 1) + ",";
-        json += "\"pressure\":" + String(pres, 1);
-        json += "}";
-
-        // Print to Serial Monitor
-        Serial.println("Sending:");
-        Serial.println(json);
-
-        // ====================================
-        // SEND TO FLASK
-        // ====================================
-
-        int httpResponseCode = http.POST(json);
-
-        Serial.print("HTTP Response Code: ");
-        Serial.println(httpResponseCode);
-
-        http.end();
-    }
-    else
-    {
-
-        Serial.println("WiFi NOT connected");
+        digitalWrite(18, HIGH);
+    } else if (temp < 28.0) {
+        digitalWrite(18, LOW);
     }
 
     delay(1000);
